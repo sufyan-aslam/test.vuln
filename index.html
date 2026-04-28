@@ -3,22 +3,22 @@
   <body>                                                                                                                                                             
   <pre id="out">Loading...</pre>                                                                                                                                   
   <script>                                                                                                                                                           
-  fetch('https://controlpanel.hyperwallet.com/graphql', {                                                                                                            
+  fetch('https://controlpanel.hyperwallet.com/graphql', {                                                                                                          
     method: 'POST',
     credentials: 'include',
     headers: {
-      'Content-Type': 'application/json',
+      'Content-Type': 'application/graphql',
       'Accept': 'application/json'
     },
-    body: JSON.stringify({ query: '{ countries { nodes { code name } } }' })
+    body: '{ __typename }'
   })
   .then(r => r.json())
-  .then(data => {
+  .then(data => {                                                                                                                                                    
     document.getElementById("out").innerText = JSON.stringify(data, null, 2);
-  })
-  .catch(e => {
+  })                                                                                                                                                                 
+  .catch(e => {                                                                                                                                                    
     document.getElementById("out").innerText = "Error: " + e;
-  });
+  });                                                                                                                                                                
   </script>
-  </body>
-  </html>
+  </body>                                                                                                                                                            
+  </html>  
