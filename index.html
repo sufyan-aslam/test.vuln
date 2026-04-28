@@ -1,21 +1,24 @@
   <!DOCTYPE html>                                                                                                                                                    
-  <html>                                                                                                                                                           
+  <html>
   <body>                                                                                                                                                             
   <pre id="out">Loading...</pre>                                                                                                                                   
-  <script>
+  <script>                                                                                                                                                           
   fetch('https://controlpanel.hyperwallet.com/graphql', {                                                                                                            
-    method: 'POST',                                                                                                                                                  
-    credentials: 'include',                                                                                                                                          
-    headers: {                                                                                                                                                       
-      'Content-Type': 'application/graphql',                                                                                                                       
-      'Accept': 'application/json'                                                                                                                                   
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
     },
-    body: '{ countries { nodes { code name } } }'                                                                                                                    
-  })                                                                                                                                                               
-  .then(r => r.json())                                                                                                                                               
+    body: JSON.stringify({ query: '{ countries { nodes { code name } } }' })
+  })
+  .then(r => r.json())
   .then(data => {
-    document.getElementById("out").innerText = JSON.stringify(data, null, 2);                                                                                        
-  });                                                                                                                                                              
-  </script>                                                                                                                                                          
+    document.getElementById("out").innerText = JSON.stringify(data, null, 2);
+  })
+  .catch(e => {
+    document.getElementById("out").innerText = "Error: " + e;
+  });
+  </script>
   </body>
   </html>
